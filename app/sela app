@@ -1,0 +1,1029 @@
+# Sela Application - Project Documentation
+
+## 📱 Apa itu Sela?
+
+**Sela** adalah aplikasi mobile (Android & iOS) yang dirancang untuk mengatasi masalah **zombie scrolling** - kebiasaan scroll media sosial secara autopilot tanpa tujuan yang jelas, yang menyebabkan waktu terbuang dan goals hidup terabaikan.
+
+### Filosofi Aplikasi
+
+Nama "Sela" berarti **celah kecil di antara sesuatu** - aplikasi ini hadir di celah kecil antara mode autopilot dan kesadaran penuh. Bukan untuk menghukum atau memblokir pengguna, tapi untuk **mengingatkan mereka tentang versi diri yang ingin mereka jadi** di momen yang tepat.
+
+---
+
+## 🎯 Target Pengguna
+
+- **Usia:** 16 tahun ke atas (SMA dan seterusnya)
+- **Karakteristik:**
+  - Sadar ada yang salah dengan kebiasaan mereka
+  - Punya goals/mimpi yang ingin dicapai
+  - Mau berubah tapi sering kalah sama dirinya sendiri
+  - Belum sangat disiplin, masih butuh bantuan eksternal
+
+---
+
+## 💡 Core Problem & Solution
+
+### Problem
+Orang punya goals penting (akademik, karir, personal development), tapi **kalah terus sama dirinya sendiri**. Zombie scrolling adalah salah satu "pelarian" yang paling mudah dan paling merusak produktivitas.
+
+### Insight
+Aplikasi ini **bukan untuk orang yang tidak mau berubah**. Tapi untuk orang yang **mau berubah, tapi sering kalah di momen kritis** - saat kemalasan hampir menang.
+
+### Solution
+Hadir di momen kritis - **saat pengguna masih mau, sebelum kemalasan menang**. Bukan menghukum, bukan memblokir total, tapi **mengingatkan pengguna tentang goals mereka sendiri** dengan cara yang respectful tapi firm.
+
+---
+
+## 🔧 Tech Stack
+
+### Platform & Framework
+- **Platform:** Android Native (Kotlin)
+- **Target:** Android 8.0+ (API 26+), optimized for Android 16 (API 36)
+- **Alasan Kotlin Native:**
+  - Full control over background services dan system APIs
+  - Direct access ke UsageStatsManager dan WindowManager tanpa wrapper
+  - Lebih stabil untuk long-running background tasks
+  - Optimal performance dan battery efficiency
+  - Mature ecosystem untuk semua fitur yang dibutuhkan Sela
+
+### Libraries & Dependencies
+```kotlin
+dependencies {
+    // Core Android
+    implementation("androidx.core:core-ktx:1.13.1")
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("com.google.android.material:material:1.12.0")
+    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+
+    // Lifecycle & ViewModel (MVVM)
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.0")
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.0")
+
+    // Coroutines untuk async operations
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+
+    // Room Database untuk goals & statistik
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1")
+
+    // DataStore untuk settings
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // WorkManager untuk background tasks (alternatif Foreground Service)
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+
+    // Hilt untuk Dependency Injection
+    implementation("com.google.dagger:hilt-android:2.51.1")
+    kapt("com.google.dagger:hilt-compiler:2.51.1")
+
+    // Testing
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+}
+```
+
+### Arsitektur
+- **MVVM + Clean Architecture**
+  ```
+  app/
+  ├── data/
+  │   ├── local/
+  │   │   ├── database/      # Room entities, DAO
+  │   │   └── datastore/     # Settings preferences
+  │   ├── repository/        # Repository implementations
+  │   └── model/            # Data models
+  ├── domain/
+  │   ├── usecase/          # Business logic
+  │   ├── repository/       # Repository interfaces
+  │   └── model/            # Domain models
+  ├── presentation/
+  │   ├── ui/
+  │   │   ├── onboarding/
+  │   │   ├── home/
+  │   │   ├── goals/
+  │   │   └── overlay/      # Overlay peringatan
+  │   ├── viewmodel/        # ViewModels
+  │   └── util/             # UI utilities
+  ├── service/
+  │   ├── MonitoringService.kt      # Foreground Service
+  │   ├── UsageStatsWorker.kt       # WorkManager worker
+  │   └── OverlayManager.kt         # Overlay management
+  └── di/                   # Hilt modules
+  ```
+
+### Development Tools
+- **IDE:** Android Studio (Ladybug | 2024.2.1+)
+- **Build System:** Gradle (Kotlin DSL)
+- **Language:** Kotlin 2.0.0+
+- **Device:** iQOO I2505 (Android 16 / API 36) dengan OriginOS
+- **Android SDK:** 36 (target), 26 (minimum)
+- **JDK:** 17 (LTS)
+
+---
+
+## ⚙️ Fitur Utama (Design)
+
+### 1. Onboarding
+- Minta izin Usage Stats & Overlay
+- User langsung ditanya: **"Apa yang ingin kamu capai?"**
+- Goals besar dipecah jadi langkah kecil harian
+
+### 2. Background Monitoring
+- Pantau aplikasi yang sedang dipakai setiap 1 detik
+- User bisa pilih aplikasi mana yang mau dipantau (Instagram, TikTok, YouTube, dll)
+- Hitung durasi pemakaian secara akumulatif
+- Default batas waktu: **15 menit** (bisa dikonfigurasi)
+
+### 3. Sistem 3 Peringatan (Modern Notification Approach)
+
+**Design Decision:** Tidak menggunakan SYSTEM_ALERT_WINDOW overlay karena:
+- Permission sering ditolak oleh manufacturer
+- Deprecated approach di Android modern
+- User experience buruk (terlalu invasive)
+
+**Solusi Modern:** Kombinasi Heads-Up Notification + Full-Screen Intent
+
+**Peringatan 1** (Soft Nudge - setelah 15 menit scroll):
+- **Method:** Heads-Up Notification (HIGH priority)
+- **Appearance:** Banner muncul melayang di atas layar yang sedang aktif
+- **Content:** "🤔 Kamu lagi ngapain sekarang?" + preview goals
+- **Sound:** Gentle chime + light vibration (200ms pattern)
+- **Interaction:**
+  - Tap → Buka app Sela untuk lihat goals lengkap
+  - Swipe → Dismiss (tapi counter warning +1)
+- **Purpose:** Soft reminder tanpa terlalu mengganggu
+
+**Peringatan 2** (Medium - user tetap lanjut scroll):
+- **Method:** Full-Screen Intent (seperti incoming call)
+- **Appearance:** Launch fullscreen Activity yang menutupi aplikasi aktif
+- **Content:**
+  - Data konsekuensi: "Kamu sudah scroll 45 menit hari ini"
+  - Konversi waktu: "Kalau dipakai belajar, itu cukup untuk menyelesaikan 1 tugas"
+  - Goals hari ini: List lengkap dengan progress
+- **Sound:** Alert tone + stronger vibration (400ms pattern x3)
+- **Interaction:**
+  - Tombol "Lanjut ke Goals" → Buka goals screen
+  - Tombol "Tetap Scroll" → Kembali ke app (counter warning +1)
+  - Cannot dismiss by back button or swipe
+- **Purpose:** Data-driven reminder yang lebih serius
+
+**Peringatan 3** (Hard - user masih ignore):
+- **Method:** Full-Screen Intent + Forced Acknowledgment
+- **Appearance:** Fullscreen Activity yang tidak bisa di-bypass
+- **Content:**
+  - Warning text: "Ini peringatan ketiga kamu hari ini"
+  - Statistik: Total waktu terbuang, goals yang belum tercapai
+  - Text input field (required): User HARUS mengetik "Saya memilih untuk terus scroll"
+- **Sound:** Urgent alarm sound + intense vibration (500ms pattern x4)
+- **Interaction:**
+  - Must type exact text to dismiss
+  - Back button disabled
+  - Home button tidak fully blocked (Android limitation) tapi activity restart saat user kembali
+  - Setelah type → Log decision, show data (berapa kali user sadar tapi tetap pilih scroll)
+- **Purpose:** Force conscious acknowledgment of choice
+
+**Technical Implementation:**
+```kotlin
+// Notification Channels
+CHANNEL_ID_GENTLE = "sela_reminder"  // IMPORTANCE_HIGH
+CHANNEL_ID_URGENT = "sela_warning"   // IMPORTANCE_MAX
+
+// Peringatan 1: Heads-Up
+NotificationCompat.Builder(context, CHANNEL_ID_GENTLE)
+    .setPriority(NotificationCompat.PRIORITY_HIGH)
+    .setCategory(NotificationCompat.CATEGORY_REMINDER)
+
+// Peringatan 2 & 3: Full-Screen Intent
+NotificationCompat.Builder(context, CHANNEL_ID_URGENT)
+    .setPriority(NotificationCompat.PRIORITY_MAX)
+    .setCategory(NotificationCompat.CATEGORY_ALARM)
+    .setFullScreenIntent(pendingIntent, true)
+```
+
+**Reset Logic:**
+- Reset counter warning setiap hari (midnight)
+- Reset durasi scroll saat user pindah ke aplikasi lain
+- Warning pattern per session: 1 → 2 → 3 (escalating)
+- Kalau user sampai peringatan 3 → log ke database untuk refleksi
+
+**Permission Required:**
+- ✅ POST_NOTIFICATIONS (Android 13+) — standard permission
+- ❌ SYSTEM_ALERT_WINDOW — TIDAK digunakan
+- ✅ USE_FULL_SCREEN_INTENT (Android 14+) — for full-screen notifications
+
+### 4. Goals Manager
+- Tambah, edit, hapus goals besar
+- Tambah langkah harian per goals
+- Tandai langkah yang sudah selesai
+
+### 5. Statistik & Refleksi
+- Total scroll hari ini, minggu ini
+- Berapa kali peringatan muncul
+- Berapa kali user sampai peringatan ke-3 (sadar tapi tetap memilih scroll)
+- Data ini bukan untuk menghakimi, tapi sebagai **cermin** untuk evaluasi diri
+
+### 6. Settings
+- Pilih aplikasi yang dipantau
+- Atur batas waktu scroll (default 15 menit)
+
+---
+
+## 📊 Development Progress
+
+### ❌ Flutter Attempt (Archived)
+
+**Sprint 1 - Backend Core (FAILED)**
+- [x] Setup Flutter project
+- [x] Install & configure Flutter SDK, Android SDK, JDK
+- [x] Permission system (Usage Stats)
+- [x] Foreground Service implementation dengan flutter_foreground_task
+- [❌] **BLOCKER:** Task handler tidak execute di Android 16 (API 36)
+  - Service berhasil start tapi callback `onRepeatEvent` tidak pernah dipanggil
+  - Kemungkinan compatibility issue antara flutter_foreground_task v9.2.0 dengan Android 16
+  - Sudah dicoba berbagai fix: update package, fix AndroidManifest, rebuild clean
+  - Hasil: Counter stuck di 0, tidak ada task execution log
+
+**Decision:** Pindah ke Kotlin Native untuk full control dan stability
+
+---
+
+### 🔄 Kotlin Native (Current)
+
+**Phase 0: Project Setup**
+- [ ] Create new Android project di Android Studio
+- [ ] Setup Gradle dependencies (Room, Hilt, Coroutines, etc)
+- [ ] Setup project structure (data, domain, presentation layers)
+- [ ] Configure ProGuard/R8
+- [ ] Setup Git & .gitignore
+
+**Sprint 1: Core Monitoring (In Progress)**
+- [ ] Permission system
+  - [ ] Usage Stats permission request & check
+  - [ ] Overlay permission (SYSTEM_ALERT_WINDOW)
+  - [ ] POST_NOTIFICATIONS permission (Android 13+)
+  - [ ] Battery optimization exemption
+- [ ] Background Service
+  - [ ] Foreground Service implementation
+  - [ ] UsageStatsManager integration
+  - [ ] Detect aplikasi yang sedang aktif
+  - [ ] Hitung durasi pemakaian
+- [ ] Testing
+  - [ ] Unit tests untuk UsageStatsManager wrapper
+  - [ ] Service lifecycle tests
+  - [ ] Test di Android 8.0, 13, dan 16
+
+**Sprint 2: Database & Settings**
+- [ ] Room database setup
+  - [ ] Entity: Goals, DailySteps, Statistics, WarningLog
+  - [ ] DAO interfaces
+  - [ ] Migration strategy
+- [ ] DataStore for settings
+  - [ ] Monitored apps list
+  - [ ] Time limit (default 15 min)
+  - [ ] Warning thresholds
+- [ ] Repository layer
+  - [ ] GoalsRepository
+  - [ ] StatsRepository
+  - [ ] SettingsRepository
+
+**Sprint 3: Notification System & 3 Peringatan**
+- [ ] Notification Channels setup
+  - [ ] Gentle channel (IMPORTANCE_HIGH) untuk peringatan 1
+  - [ ] Urgent channel (IMPORTANCE_MAX) untuk peringatan 2 & 3
+  - [ ] Custom sounds & vibration patterns
+- [ ] Peringatan 1: Heads-Up Notification
+  - [ ] Build notification dengan HIGH priority
+  - [ ] Sound + vibration pattern (gentle)
+  - [ ] Action buttons (Lihat Goals / Dismiss)
+- [ ] Peringatan 2: Full-Screen Intent Activity
+  - [ ] Warning2Activity layout
+  - [ ] Show data konsekuensi (durasi, konversi waktu)
+  - [ ] Goals summary display
+  - [ ] Action buttons (Lanjut Goals / Tetap Scroll)
+- [ ] Peringatan 3: Full-Screen Intent + Text Input
+  - [ ] Warning3Activity layout
+  - [ ] EditText dengan validation
+  - [ ] Block back button
+  - [ ] Restart activity on home button press
+  - [ ] Log conscious decision to database
+- [ ] Logika trigger bertahap (1 → 2 → 3)
+
+**Sprint 4: Goals Management UI**
+- [ ] Onboarding flow
+- [ ] Home screen (dashboard)
+- [ ] Goals list & detail screen
+- [ ] Add/Edit goal screen
+- [ ] Daily steps checklist
+- [ ] MVVM implementation dengan ViewModels
+
+**Sprint 5: Statistics & Analytics**
+- [ ] Statistics screen
+  - [ ] Daily/weekly scroll chart
+  - [ ] Warning frequency
+  - [ ] Goals completion rate
+- [ ] Data aggregation logic
+- [ ] Export data (JSON)
+
+**Sprint 6: Polish & Testing**
+- [ ] UI/UX refinement
+- [ ] Dark mode
+- [ ] Accessibility features
+- [ ] Comprehensive testing
+- [ ] Battery optimization
+- [ ] Performance profiling
+- [ ] Beta testing
+
+---
+
+### 🚧 Current Status
+
+**Phase:** Project Setup & Architecture Planning
+**Blocker:** None (fresh start dengan Kotlin Native)
+**Next Step:** Create Android project structure dan setup dependencies
+
+**Estimated Timeline:**
+- Sprint 1 (Core Monitoring): 2 weeks
+- Sprint 2 (Database): 1 week
+- Sprint 3 (Overlay): 2 weeks
+- Sprint 4 (Goals UI): 2 weeks
+- Sprint 5 (Statistics): 1 week
+- Sprint 6 (Polish): 2 weeks
+- **Total:** ~10 weeks untuk MVP
+
+---
+
+**Sprint 2: Usage Stats Integration & Detection Logic**
+- [ ] Implementasi Usage Stats untuk deteksi aplikasi aktif
+- [ ] Logika hitung durasi pemakaian
+- [ ] Trigger callback saat durasi lewat batas waktu
+- [ ] Reset durasi saat pindah aplikasi
+- [ ] Settings untuk pilih aplikasi yang dipantau
+- [ ] Settings untuk atur batas waktu
+
+**Sprint 3: Overlay & Sistem 3 Peringatan**
+- [ ] Implementasi overlay dengan `flutter_overlay_window`
+- [ ] UI Peringatan 1 (pertanyaan + goals)
+- [ ] UI Peringatan 2 (data konsekuensi)
+- [ ] UI Peringatan 3 (text input paksa)
+- [ ] Logika bertahap 3 peringatan
+- [ ] Tracking berapa kali user sampai peringatan ke-3
+
+**Sprint 4: Goals Management**
+- [ ] Database dengan Isar
+- [ ] CRUD goals besar
+- [ ] CRUD langkah harian
+- [ ] Checklist untuk langkah yang selesai
+- [ ] Linking goals dengan konsekuensi di peringatan
+
+**Sprint 5: Statistik & Dashboard**
+- [ ] Dashboard utama
+- [ ] Grafik scroll harian/mingguan
+- [ ] Statistik peringatan
+- [ ] Refleksi data (berapa kali sadar tapi tetap scroll)
+- [ ] Export data (optional)
+
+**Sprint 6: Polish & Optimization**
+- [ ] Onboarding flow yang smooth
+- [ ] UI/UX polish
+- [ ] Battery optimization
+- [ ] Testing di berbagai devices
+- [ ] Handle edge cases
+- [ ] Error handling comprehensive
+
+---
+
+## 🔬 Technical Challenges
+
+### 1. Background Service Stability
+**Challenge:** Android makin ketat dengan background restrictions. iQOO/OriginOS sangat agresif kill background services.
+
+**Solution di Kotlin Native:**
+- Foreground Service dengan proper notification (tidak bisa di-kill sistem)
+- WorkManager sebagai fallback untuk restart service kalau ter-kill
+- Whitelist guidance untuk user (auto-start, battery optimization)
+- Handle Doze Mode & App Standby dengan tepat
+
+### 2. UsageStatsManager Accuracy
+**Challenge:** UsageStatsManager kadang delay atau data tidak real-time.
+
+**Solution:**
+- Query dengan interval yang tepat (tidak terlalu sering = battery drain, tidak terlalu jarang = tidak akurat)
+- Cache recent data untuk mengurangi query frequency
+- Handle case dimana data tidak tersedia (permission revoked mid-operation)
+
+### 3. Overlay Permission Complexity
+**Challenge:** Manufacturer-specific behavior berbeda untuk overlay permission.
+
+**Solution:**
+- Detect manufacturer dan adjust flow accordingly
+- Graceful fallback ke notification kalau overlay permission ditolak
+- Clear UX explanation kenapa permission ini penting
+
+### 4. Battery Optimization
+**Challenge:** Monitoring continuous bisa drain battery jika tidak dioptimasi.
+
+**Solution di Kotlin Native:**
+- Batch operations (write database setiap 5 menit, bukan realtime)
+- Gunakan `AlarmManager.setInexactRepeating()` untuk periodic check (lebih battery-friendly)
+- Avoid wake locks kecuali absolutely necessary
+- Profiling dengan Battery Historian
+
+### 5. Data Privacy & Security
+**Challenge:** Usage stats data sangat sensitif.
+
+**Solution:**
+- SQLCipher untuk encrypt database
+- No telemetry/analytics ke server
+- Clear privacy policy
+- User control atas data (export, delete)
+
+### 6. Cross-Version Compatibility
+**Challenge:** Android 8 vs Android 16 punya API yang berbeda untuk notifications, foreground services, dll.
+
+**Solution:**
+- Conditional compilation berdasarkan SDK version
+- Thorough testing di berbagai API levels
+- Fallback mechanism untuk deprecated APIs
+
+---
+
+## 🔄 Flutter → Kotlin Native Transition
+
+### Alasan Pindah
+1. **Kontrol Penuh:** Direct access ke Android APIs tanpa wrapper layer yang bisa buggy
+2. **Stability:** Foreground Service di native Kotlin jauh lebih stabil untuk long-running tasks
+3. **Performance:** No Flutter engine overhead untuk background tasks
+4. **Maturity:** Android native ecosystem lebih mature untuk use case seperti Sela
+5. **Debugging:** Easier debugging dengan native tools (Android Studio Profiler, Logcat)
+6. **Community:** Lebih banyak resources untuk Android-specific issues
+
+### Lessons Learned dari Flutter Attempt
+- ✅ Konsep aplikasi sudah solid dan well-designed
+- ✅ UI/UX flow sudah jelas
+- ✅ Requirement gathering lengkap
+- ❌ Cross-platform framework tidak ideal untuk apps yang heavily rely on platform-specific APIs
+- ❌ Background service di Flutter masih immature untuk production use
+
+### What Stays the Same
+- ✅ Semua konsep (goals, 3 peringatan, monitoring logic)
+- ✅ Design decisions (15 menit default, 3x warning pattern)
+- ✅ Target users dan use cases
+- ✅ ISO 25010 quality requirements
+
+### What Changes
+- ❌ No iOS version (Android-only untuk sekarang)
+- ✅ Full Kotlin instead of Dart
+- ✅ Native Android UI (Material Design 3) instead of Flutter widgets
+- ✅ Direct API access without plugins
+
+---
+
+## 📝 Key Design Decisions
+
+### 1. Kenapa 15 Menit Default?
+Berdasarkan riset dopamin - sintesis dopamin peak terjadi di 20-40 menit. Peringatan di 15 menit adalah **sebelum dopamine loop terkunci**, masih ada kesempatan user sadar.
+
+### 2. Kenapa 3 Peringatan Bertahap?
+Quote: *"Kesalahan yang diulang lebih dari satu kali adalah keputusan, dua kali adalah kebiasaan, dan tiga kali adalah karakter."*
+
+Peringatan ke-3 dengan text input paksa adalah momen dimana user benar-benar **acknowledge pilihan mereka** secara sadar.
+
+### 3. Kenapa Tidak Blokir Total?
+Karena target user adalah **orang yang mau berubah tapi belum konsisten**. Memaksa dengan blokir total akan ditolak (seperti user yang uninstall Instagram tapi install lagi seminggu kemudian).
+
+Sela hadir sebagai **reminder**, bukan **penghalang**.
+
+### 4. Kenapa Flutter bukan Native?
+User mau aplikasi ini tersedia di Android **dan** iOS. Flutter memungkinkan satu codebase untuk kedua platform, mempercepat development.
+
+---
+
+## 🐛 Known Issues & Workarounds
+
+### Issue 1: Task Handler Tidak Execute (CURRENT)
+**Status:** Sedang diperbaiki
+**Workaround:** Belum ada, ini blocker untuk lanjut ke Sprint 2
+
+### Issue 2: Android SDK Path dengan Spasi
+**Status:** Fixed
+**Solution:** Pindahkan Android SDK ke path tanpa spasi (D:\Android\Sdk)
+
+### Issue 3: Flutter SDK Path di VS Code
+**Status:** Fixed
+**Solution:** Set `dart.flutterSdkPath` dengan forward slash: `"D:/src/flutter"`
+
+---
+
+## 📚 Resources & References
+
+### Documentation
+- Flutter Foreground Task: https://pub.dev/packages/flutter_foreground_task
+- Usage Stats: https://pub.dev/packages/usage_stats
+- Flutter Overlay Window: https://pub.dev/packages/flutter_overlay_window
+- Isar Database: https://isar.dev/
+- Riverpod: https://riverpod.dev/
+
+### Design Inspiration
+- Digital Wellbeing (Android native)
+- Forest app
+- One Sec app
+
+### Research
+- Dopamine synthesis timing: 20-40 menit untuk peak effect
+- Habit formation: 3 kali pengulangan = habit
+- Friction design: Menambah hambatan kecil sebelum action
+
+---
+
+---
+
+## 🎯 ISO 25010 Quality Attributes
+
+Sela dirancang dengan memperhatikan standar kualitas perangkat lunak ISO 25010. Berikut adalah bagaimana setiap aspek diterapkan:
+
+### 1️⃣ Functional Suitability (Kesesuaian Fungsional)
+
+**Definisi:** Apakah sistem melakukan apa yang seharusnya dilakukan?
+
+**Implementasi di Sela:**
+- ✅ **Functional Completeness:** Semua fitur yang didefinisikan (monitoring, 3 peringatan, goals management, statistik) akan diimplementasikan lengkap
+- ✅ **Functional Correctness:**
+  - Usage Stats API mendeteksi aplikasi aktif dengan akurat
+  - Durasi dihitung tepat dengan margin error < 1 detik
+  - Sistem 3 peringatan trigger sesuai kondisi yang sudah ditentukan
+- ✅ **Functional Appropriateness:**
+  - Tidak ada fitur yang berlebihan (bloat)
+  - Setiap fitur punya purpose yang jelas sesuai tujuan aplikasi
+
+**Acceptance Criteria:**
+- Semua unit tests pass (> 80% code coverage)
+- Manual testing di minimal 3 device dengan hasil konsisten
+- Zero critical bugs di production
+
+---
+
+### 2️⃣ Performance Efficiency
+
+**Definisi:** Seberapa efisien sistem menggunakan resource?
+
+**Implementasi di Sela:**
+
+**a) Time Behavior (Kecepatan & Responsiveness)**
+- Deteksi aplikasi aktif: < 2 detik delay
+- Overlay peringatan muncul: < 1 detik setelah trigger
+- UI response time: < 100ms untuk semua interaksi
+- Database query: < 50ms untuk operasi CRUD goals
+
+**b) Resource Utilization**
+- **Memory:**
+  - Baseline (idle): < 50 MB
+  - Active monitoring: < 80 MB
+  - Peak (overlay): < 120 MB
+- **CPU:**
+  - Background monitoring: < 1% CPU usage
+  - UI interactions: < 5% CPU usage
+  - No CPU spikes during normal operation
+- **Storage:**
+  - App size: < 15 MB (APK)
+  - Data storage: < 5 MB untuk 1 tahun data
+
+**c) Battery Efficiency**
+- Target: < 2% battery drain per hari untuk 8 jam monitoring
+- Implementasi:
+  - Gunakan `AlarmManager` untuk periodic check, bukan continuous polling
+  - Batch database writes (write setiap 5 menit, bukan setiap detik)
+  - Hindari wake locks yang tidak perlu
+  - Gunakan `Doze Mode` exemption hanya saat benar-benar diperlukan
+
+**Measurement:**
+- Battery Historian untuk track battery usage
+- Android Profiler untuk memory & CPU monitoring
+- Systrace untuk performance bottlenecks
+
+---
+
+### 3️⃣ Compatibility
+
+**Definisi:** Bisa berjalan di berbagai environment tanpa konflik
+
+**Implementasi di Sela:**
+
+**a) Co-existence**
+- Tidak konflik dengan aplikasi battery saver lain
+- Tidak interfere dengan system notifications
+- Tidak block aplikasi lain yang butuh overlay permission
+
+**b) Interoperability**
+- Support Android 8.0 (API 26) hingga Android 16+ (API 36+)
+- Fallback mechanism untuk API yang deprecated:
+  ```kotlin
+  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      // Use new API
+  } else {
+      // Use legacy API
+  }
+  ```
+- Handle manufacturer-specific behaviors (Xiaomi, Oppo, Vivo, Samsung)
+
+**Testing Matrix:**
+| Brand | Model | Android Version | Status |
+|-------|-------|----------------|--------|
+| iQOO | I2505 | 16 (API 36) | ✅ Primary |
+| Samsung | Galaxy A54 | 14 (API 34) | 🔄 Testing |
+| Xiaomi | Redmi Note 13 | 13 (API 33) | 🔄 Testing |
+| Google | Pixel 6 | 14 (API 34) | 🔄 Testing |
+
+---
+
+### 4️⃣ Usability
+
+**Definisi:** Seberapa mudah pengguna menggunakan sistem?
+
+**Implementasi di Sela:**
+
+**a) Learnability (Mudah Dipelajari)**
+- Onboarding max 3 screen, langsung ke inti
+- First-time user bisa mulai monitoring dalam < 2 menit
+- No tutorial yang panjang — learn by doing
+
+**b) Operability (Mudah Dioperasikan)**
+- UI intuitif:
+  - Goals screen: FAB untuk tambah goal
+  - Home screen: toggle switch untuk on/off monitoring
+  - Settings: grouped logically
+- Gesture yang familiar (swipe, tap, long press)
+- No hidden features — semua accessible dari main navigation
+
+**c) User Error Protection**
+- Confirmation dialog untuk destructive actions (hapus goal, reset data)
+- Input validation real-time dengan error message yang jelas
+- Tidak bisa hapus goal yang sedang aktif tanpa warning
+
+**d) User Interface Aesthetics**
+- Material Design 3 compliance
+- Consistent color scheme (primary, secondary, error)
+- Proper contrast ratio untuk accessibility (WCAG AA)
+- Dark mode support
+
+**e) Accessibility**
+- Content descriptions untuk screen readers
+- Minimum touch target: 48dp x 48dp
+- Text scalable (support Dynamic Type)
+- Color tidak sebagai satu-satunya indicator (tambah icon)
+
+---
+
+### 5️⃣ Reliability
+
+**Definisi:** Sistem tetap jalan stabil dalam kondisi normal dan abnormal
+
+**Implementasi di Sela:**
+
+**a) Maturity (Kestabilan)**
+- Zero crash dalam 7 hari continuous operation
+- Monitoring service tetap jalan walau:
+  - Device restart
+  - Low memory condition
+  - App update
+- Handle edge cases:
+  - User uninstall monitored app
+  - User change phone language/timezone
+  - Permission revoked mid-operation
+
+**b) Availability**
+- Target uptime: 99.5% (service tetap jalan)
+- Graceful degradation:
+  - Kalau Usage Stats permission dicabut → show persistent notification untuk re-grant
+  - Kalau overlay permission dicabut → fallback ke regular notification
+  - Kalau battery optimization kill service → auto-restart via WorkManager
+
+**c) Fault Tolerance**
+- Try-catch di semua critical operations
+- Logging untuk post-mortem analysis
+- Retry mechanism untuk transient failures:
+  ```kotlin
+  retry(times = 3, initialDelay = 1000) {
+      // Critical operation
+  }
+  ```
+
+**d) Recoverability**
+- Database backup otomatis setiap minggu
+- Export/import goals & settings
+- Reset to factory settings (clear all data)
+
+---
+
+### 6️⃣ Security
+
+**Definisi:** Melindungi data dan privacy user
+
+**Meskipun tidak ada login, Security tetap penting karena:**
+
+**a) Confidentiality (Kerahasiaan Data)**
+- **Data Sensitif:** Usage stats = aplikasi apa yang dibuka = privacy concern
+- **Implementasi:**
+  - Semua data disimpan lokal (tidak ada server)
+  - Database di-encrypt dengan SQLCipher
+  - No analytics/telemetry yang kirim data ke cloud
+  - No third-party SDK yang collect data
+
+**b) Integrity (Integritas Data)**
+- Data tidak bisa dimanipulasi dari luar
+- Foreign keys & constraints di database untuk data consistency
+- Checksum validation untuk backup/restore
+
+**c) Authentication & Authorization**
+- Tidak ada login memang, tapi ada **device-level protection:**
+  - App lock: user bisa set PIN/Biometric untuk buka app
+  - Goals & stats hanya accessible kalau device unlocked
+
+**d) Privacy by Design**
+- Minimum permission yang diminta (hanya yang esensial)
+- Transparent permission explanation (kenapa butuh Usage Stats)
+- User bisa pilih aplikasi mana yang dipantau (granular control)
+- Data retention policy: otomatis hapus data > 1 tahun
+
+**e) Security Best Practices**
+- ProGuard/R8 untuk obfuscate code (anti-reverse engineering)
+- Certificate pinning kalau nanti ada fitur sync (future)
+- No hardcoded secrets di code
+- Secure coding standards (OWASP Mobile Top 10)
+
+---
+
+### 7️⃣ Maintainability
+
+**Definisi:** Seberapa mudah code dipelihara dan dikembangkan?
+
+**Implementasi di Sela:**
+
+**a) Modularity**
+- Separation of Concerns yang jelas (MVVM + Clean Architecture)
+- Setiap module punya single responsibility
+- Loose coupling via Dependency Injection (Hilt)
+
+**b) Reusability**
+- Base classes untuk common patterns:
+  ```kotlin
+  abstract class BaseViewModel<T> : ViewModel()
+  abstract class BaseFragment<VB: ViewBinding> : Fragment()
+  ```
+- Extension functions untuk reusable utilities
+- Custom Views untuk UI components yang sering dipakai
+
+**c) Analyzability (Mudah Dipahami)**
+- Naming conventions yang konsisten dan descriptive
+- KDoc untuk semua public APIs
+- README.md di setiap module
+- Architecture Decision Records (ADR) untuk keputusan penting
+
+**d) Modifiability (Mudah Diubah)**
+- SOLID principles applied
+- Interface-based programming
+- Feature flags untuk enable/disable fitur tanpa rebuild
+
+**e) Testability**
+- Unit tests untuk ViewModels & UseCases (> 80% coverage)
+- UI tests dengan Espresso untuk critical flows
+- MockK untuk mocking dependencies
+- Test doubles untuk external dependencies (UsageStatsManager)
+
+**Code Quality Metrics:**
+| Metric | Target | Measurement Tool |
+|--------|--------|------------------|
+| Code Coverage | > 80% | JaCoCo |
+| Cyclomatic Complexity | < 10 per method | Detekt |
+| Code Duplication | < 5% | Detekt |
+| Lint Warnings | 0 | Android Lint |
+
+---
+
+### 8️⃣ Portability
+
+**Definisi:** Seberapa mudah sistem dipindahkan ke environment lain?
+
+**Implementasi di Sela:**
+
+**a) Adaptability**
+- Configuration via BuildConfig dan Gradle:
+  ```kotlin
+  buildTypes {
+      debug {
+          buildConfigField("int", "DEFAULT_MONITORING_INTERVAL", "15")
+      }
+      release {
+          buildConfigField("int", "DEFAULT_MONITORING_INTERVAL", "15")
+      }
+  }
+  ```
+- Environment-specific configs (dev, staging, prod)
+- No hardcoded values — semua dari config
+
+**b) Installability**
+- Clean installation process (no manual steps)
+- Support in-app update (Google Play Core Library)
+- Migration script untuk upgrade dari versi lama
+
+**c) Replaceability**
+- Data export format: JSON (universal, machine-readable)
+- Backup compatible across versions
+- Clear migration path kalau user mau pindah ke alternatif app
+
+---
+
+## 📊 Quality Assurance Strategy
+
+### Testing Pyramid
+```
+       /\
+      /  \  E2E Tests (10%)
+     /    \
+    /------\ Integration Tests (30%)
+   /        \
+  /----------\ Unit Tests (60%)
+```
+
+### Test Coverage Goals
+- **Unit Tests:** 80%+ coverage untuk ViewModels, UseCases, Repositories
+- **Integration Tests:** Critical flows (onboarding, monitoring start/stop, 3 peringatan)
+- **UI Tests:** Happy path user journeys
+- **Manual Testing:** Device compatibility, edge cases
+
+### CI/CD Pipeline
+```
+Code Push → Lint Check → Unit Tests → Build APK → Integration Tests → Deploy to Internal Testing
+```
+
+### Performance Benchmarks
+- Startup time: < 2 seconds (cold start)
+- Frame rate: 60 FPS sustained
+- Memory leaks: 0 detected via LeakCanary
+- ANR rate: < 0.1%
+
+---
+
+## 🎯 Success Criteria
+
+Aplikasi Sela dianggap berhasil jika:
+
+### Technical Success
+- [ ] Service berjalan stabil di background
+- [ ] Deteksi aplikasi akurat (< 2 detik delay)
+- [ ] Overlay muncul tepat waktu (< 1 detik setelah trigger)
+- [ ] Battery drain < 5% per hari
+- [ ] Tidak ada crash atau force close
+- [ ] Works on Android 8+ dan iOS 13+
+
+### User Success
+- [ ] User pakai konsisten minimal 1 minggu
+- [ ] User report "lebih sadar" saat pakai HP
+- [ ] User complete minimal 1 goal yang sudah di-set
+- [ ] User tidak uninstall di minggu pertama
+- [ ] User recommend ke teman (word of mouth)
+
+### Behavioral Success
+- [ ] Durasi zombie scrolling berkurang minimal 30%
+- [ ] User lebih sering sampai peringatan 1 (sadar lebih cepat)
+- [ ] User lebih jarang sampai peringatan 3 (tidak perlu dipaksa)
+- [ ] Completion rate langkah harian goals > 50%
+
+---
+
+## 📞 Contact & Development Info
+
+**Developer:** [Your Name]
+**Project Start:** February 2026
+**Current Phase:** Sprint 1 - Backend Core (Testing)
+**Device:** iQOO I2505 - Android 16 (API 36)
+**Development OS:** Windows 11 (Build 26200)
+
+**AI Assistant:** Qwen (via VS Code)
+**Documentation Last Updated:** February 19, 2026, 23:57 WIB
+
+---
+
+## 🔄 Version History
+
+### v0.1.0-alpha (Current)
+- Initial project setup
+- Foreground Service implementation (in testing)
+- Basic UI for service control
+- Permission system for Usage Stats
+
+---
+
+## 📋 TODO - Immediate Next Steps
+
+1. **CRITICAL:** Fix task handler execution issue
+   - Verify log `[MyForegroundTaskHandler] ✓ onRepeatEvent EXECUTED` muncul
+   - Verify counter updates setiap detik
+   - Test minimize app → service tetap jalan
+
+2. **After Sprint 1 Pass:** Move to Sprint 2
+   - Integrate Usage Stats API
+   - Implement app detection logic
+   - Implement duration tracking
+   - Test dengan real usage (scroll Instagram 15 menit)
+
+3. **Documentation:**
+   - Screenshot UI setiap milestone
+   - Record video demo untuk setiap sprint
+   - Update README.md di repository
+
+---
+
+## 💭 Notes for Future AI Context
+
+**Jika kamu adalah AI yang membaca dokumentasi ini untuk melanjutkan development:**
+
+### 1. Context Switch: Flutter → Kotlin Native
+**Important:** Project ini awalnya dikembangkan dengan Flutter tapi **dipindahkan ke Kotlin Native** karena foreground service issue di Android 16. Code Flutter yang ada **sudah tidak relevan** — fresh start dengan Kotlin Native.
+
+**Jangan:**
+- ❌ Coba fix Flutter implementation yang lama
+- ❌ Sarankan package Flutter untuk background tasks
+- ❌ Assume cross-platform masih jadi priority
+
+**Lakukan:**
+- ✅ Start fresh dengan Android Native Kotlin project
+- ✅ Ikuti struktur MVVM + Clean Architecture yang sudah didefinisikan
+- ✅ Reference dokumentasi Android native APIs, bukan Flutter plugins
+
+### 2. Current Status
+- **Phase:** Project setup & architecture planning
+- **No code blocker** — clean slate untuk Kotlin Native
+- **Requirement gathering:** ✅ Complete
+- **Design decisions:** ✅ Finalized
+- **Next step:** Create Android project di Android Studio
+
+### 3. User Personality & Preferences
+- **Learning style:** Learning by doing, prefer hands-on approach
+- **Communication:** Appreciate deep discussions tentang "why", not just "how"
+- **Honesty:** Respect uncertainty — kalau AI ragu, bilang ragu (user appreciate that)
+- **Problem-solving:** User prefer to understand root cause, not just quick fix
+- **AI-assisted coding:** User pakai AI (formerly Qwen, now you) untuk code generation — effective prompting > manual coding
+
+### 4. Device Context
+- **Primary device:** iQOO I2505 - Android 16 (API 36) dengan OriginOS
+- **Challenge:** OriginOS sangat agresif kill background services — always consider this
+- **Testing:** Must test di device ini untuk verify background service stability
+
+### 5. Key Design Principles (DON'T CHANGE)
+- **Philosophy:** Sela adalah "reminder respectful", bukan "blocker paksa"
+- **15 menit default:** Based on dopamine research — tidak boleh diubah tanpa strong scientific reason
+- **3 peringatan pattern:** Based on habit formation research (1x = kesalahan, 2x = kebiasaan, 3x = karakter)
+- **No punishment:** App tidak menghakimi, hanya mengingatkan dan mencerminkan pilihan user
+
+### 6. ISO 25010 Compliance
+**All development decisions must consider:**
+- Functional Suitability: Does it do what it should?
+- Performance: Is it fast and battery-efficient?
+- Usability: Is it easy to use?
+- Reliability: Does it crash?
+- Security: Is user data protected?
+- Maintainability: Is code clean?
+
+Jangan compromise quality attributes untuk speed of development.
+
+### 7. Documentation Maintenance
+- Update this documentation after every major milestone
+- Add ADR (Architecture Decision Records) untuk keputusan besar
+- Screenshot UI di setiap sprint completion
+- Keep "Current Status" section always up-to-date
+
+### 8. Development Tools Expected
+- **IDE:** Android Studio (latest stable)
+- **Language:** Kotlin 2.0+
+- **Build:** Gradle Kotlin DSL
+- **Testing:** JUnit, Espresso, MockK
+- **CI/CD:** GitHub Actions (to be set up)
+
+### 9. Don't Assume
+- ❌ User sudah tahu Kotlin Native development
+- ❌ User sudah familiar dengan Android lifecycle
+- ❌ User sudah punya Android project structure siap pakai
+
+**Do:**
+- ✅ Explain architectural decisions
+- ✅ Provide code structure templates
+- ✅ Guide through Android-specific concepts (Activity, Service, BroadcastReceiver, etc)
+
+### 10. Success Metrics
+Project dianggap sukses kalau:
+- ✅ Background service jalan stabil 7 hari non-stop
+- ✅ Battery drain < 2% per hari
+- ✅ Counter bertambah setiap detik (Sprint 1 critical success criteria)
+- ✅ User bisa set goals dan monitoring berjalan sesuai desain
+- ✅ Semua ISO 25010 quality attributes terpenuhi
+
+---
+
+Good luck! 🚀
+
+**Last Updated:** February 20, 2026, 01:30 WIB
+**Status:** Ready for Kotlin Native implementation
+**Next Session:** Create Android project structure

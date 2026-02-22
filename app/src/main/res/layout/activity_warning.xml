@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#1A1A1A"
+    android:orientation="vertical"
+    android:padding="32dp"
+    android:gravity="center">
+
+    <TextView
+        android:id="@+id/txtWarningTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="PERINGATAN 2"
+        android:textColor="#FF5252"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="24dp" />
+
+    <TextView
+        android:id="@+id/txtWarningMessage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Kamu sudah terlalu lama di sini!\nSaatnya berhenti dan lanjutkan goal kamu."
+        android:textColor="#FFFFFF"
+        android:textSize="20sp"
+        android:gravity="center"
+        android:lineSpacingExtra="8dp"
+        android:layout_marginBottom="32dp" />
+
+    <EditText
+        android:id="@+id/editTextConfirmation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:drawable/edit_text"
+        android:padding="16dp"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#888888"
+        android:layout_marginBottom="24dp"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/btnSadar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="SADAR"
+        android:textSize="18sp"
+        android:paddingHorizontal="48dp"
+        android:paddingVertical="16dp"
+        android:backgroundTint="#4CAF50" />
+
+</LinearLayout>
